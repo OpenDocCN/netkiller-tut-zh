@@ -1,0 +1,24 @@
+# 第 48 章 FAQ
+
+## /lib64/libc.so.6: version `GLIBC_2.14' not found
+
+```
+# strings /lib64/libc.so.6 |grep GLIBC_
+GLIBC_2.2.5
+GLIBC_2.2.6
+GLIBC_2.3
+GLIBC_2.3.2
+GLIBC_2.3.3
+GLIBC_2.3.4
+GLIBC_2.4
+GLIBC_2.5
+GLIBC_2.6
+GLIBC_2.7
+GLIBC_2.8
+GLIBC_2.9
+GLIBC_2.10
+GLIBC_2.11
+GLIBC_2.12
+GLIBC_PRIVATE
+
+```

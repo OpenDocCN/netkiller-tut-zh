@@ -1,0 +1,116 @@
+# 第 24 章 FAQ
+
+## Linux 用户使用 FreeBSD，问 FreeBSD ulimit 怎么设置？
+
+首先说明 FreeBSD 默认 Shell 是 csh 没有 ulimit 命令，但 C Shell 有 limit 命令。如果你想使用 ulimit 命令可以安装 Bourne shell，Bash，Zsh
+
+limit,ulimit 比较
+
+```
+[neo@freebsd:~] limit
+cputime         unlimited
+filesize        unlimited
+datasize        32768MB
+stacksize       512MB
+coredumpsize    unlimited
+memoryuse       unlimited
+memorylocked    unlimited
+maxproc         5547
+descriptors     65536
+sockbufsize     unlimited
+vmemorysize     unlimited
+NPTS            unlimited
+SWAP            unlimited
+
+[neo@freebsd:~] env | grep SHELL
+SHELL=/usr/local/bin/zsh
+
+[neo@freebsd:~] ulimit -a
+-t: cpu time (seconds)         unlimited
+-f: file size (blocks)         unlimited
+-d: data seg size (kbytes)     33554432
+-s: stack size (kbytes)        524288
+-c: core file size (blocks)    unlimited
+-m: resident set size (kbytes) unlimited
+-l: locked-in-memory size (kb) unlimited
+-u: processes                  5547
+-n: file descriptors           65536
+-N  9: socket buffer size (kb) unlimited
+-v: virtual memory size (kb)   unlimited
+-N 11:                         unlimited
+-N 12:                         unlimited
+
+在 Freebsd 上，你能使用 sysctl 命令：
+
+```
+
+以 nofile - max number of open files 为例，limit、ulimit、sysctl 实现同样的功能。
+
+```
+csh% limit descriptors unlimited
+或者
+csh% limit descriptors 4096
+
+sh$ ulimit -n unlimited
+或者
+sh$ ulimit -n 4096
+
+sysctl kern.maxfiles=65536
+sysctl kern.maxfilesperproc=65536
+
+```
+
+写入配置文件 sysctl.conf
+
+```
+[neo@freebsd:~] cat /etc/sysctl.conf
+# $FreeBSD: src/etc/sysctl.conf,v 1.8.34.1.4.1 2010/06/14 02:09:06 kensmith Exp $
+#
+#  This file is read when going to multi-user and its contents piped thru
+#  ``sysctl'' to adjust kernel values.  ``man 5 sysctl.conf'' for details.
+#
+
+# Uncomment this to prevent users from seeing information about processes that
+# are being run under another UID.
+#security.bsd.see_other_uids=0
+
+#vm.pmap.shpgperproc: 2000
+#vm.pmap.pv_entry_max: 13338058
+kern.ipc.shm_use_phys=1
+kern.maxfiles=65536
+kern.maxfilesperproc=65536
+kern.ipc.somaxconn=2048
+
+[neo@freebsd:~] /etc/rc.d/sysctl reload
+
+[neo@freebsd:~] sysctl -a | grep maxfiles
+kern.maxfiles: 65536
+kern.maxfilesperproc: 65536
+
+```
+
+## su: Sorry
+
+```
+root@freebsd:/root # pw groupmod wheel -m test
+
+root@freebsd:/root # cat /etc/group | grep test
+wheel:*:0:root,neo,test
+test:*:1002:
+
+```
+
+```
+root@freebsd:/root # pw usermod test -g wheel
+
+root@freebsd:/root # cat /etc/passwd | grep test
+test:*:1002:0:test:/home/test:/bin/csh
+
+```
+
+或者直接修改/etc/group 文件，把相应的用户加到 wheell 组就可以
+
+```
+wheel:*:0:root,username
+
+```

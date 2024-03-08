@@ -1,0 +1,272 @@
+# 第 22 章 JSON (JavaScript Object Notation)
+
+## javax.json.*
+
+### Json 编码
+
+```
+
+package netkiller.json;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+
+import javax.json.*;
+
+public final class Writer {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+		JsonObjectBuilder jsonBuilder = Json.createObjectBuilder();
+		JsonObjectBuilder addressBuilder = Json.createObjectBuilder();
+		JsonArrayBuilder phoneNumBuilder = Json.createArrayBuilder();
+
+		phoneNumBuilder.add("12355566688").add("0755-2222-3333");
+
+		addressBuilder.add("street", "Longhua").add("city",	"Shenzhen").add("zipcode", 518000);
+
+		jsonBuilder.add("nickname", "netkiller").add("name", "Neo").add("department", "IT").add("role",	"Admin");
+
+		jsonBuilder.add("phone", phoneNumBuilder);
+		jsonBuilder.add("address", addressBuilder);
+
+		JsonObject jsonObject = jsonBuilder.build();
+
+		System.out.println(jsonObject);
+
+		try {
+			// write to file
+			File file = new File("json.txt");
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+			OutputStream os = null;
+			os = new FileOutputStream(file);
+			JsonWriter jsonWriter = Json.createWriter(os);
+			jsonWriter.writeObject(jsonObject);
+			jsonWriter.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+}
+
+```
+
+运行后输出
+
+```
+				{"nickname":"netkiller","name":"Neo","department":"IT","role":"Admin","phone":["12355566688","0755-2222-3333"],"address":{"street":"Longhua","city":"Shenzhen","zipcode":"518000"}}
+
+```
+
+### Json 解码
+
+```
+
+package netkiller.json;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
+import javax.json.JsonValue;
+
+public final class Reader {
+
+	public static final String JSON_FILE="json.txt";
+
+	public static void main(String[] args) throws IOException {
+		InputStream fis = new FileInputStream(JSON_FILE);
+		//create JsonReader object
+		JsonReader jsonReader = Json.createReader(fis);
+
+		//get JsonObject from JsonReader
+		JsonObject jsonObject = jsonReader.readObject();
+
+		//we can close IO resource and JsonReader now
+		jsonReader.close();
+		fis.close();
+
+		System.out.printf("nickname: %s \n", jsonObject.getString("nickname"));
+		System.out.printf("name: %s \n", jsonObject.getString("name"));
+		System.out.printf("department: %s \n",
+		jsonObject.getString("department"));
+		System.out.printf("role: %s \n", jsonObject.getString("role"));
+		JsonArray jsonArray = jsonObject.getJsonArray("phone");
+
+		//long[] numbers = new long[jsonArray.size()];
+		int index = 0;
+		for(JsonValue value : jsonArray){
+			//numbers[index++] = Long.parseLong(value.toString());
+			System.out.printf("phone[%d]: %s \n", index++, value.toString());
+		}
+
+		//reading inner object from json object
+		JsonObject innerJsonObject = jsonObject.getJsonObject("address");
+
+		System.out.printf("address: %s, %s, %d \n",
+		innerJsonObject.getString("street"),
+		innerJsonObject.getString("city"),
+		innerJsonObject.getInt("zipcode"));
+
+	}
+
+}
+
+```
+
+运行结果
+
+```
+
+nickname: netkiller
+name: Neo
+department: IT
+role: Admin
+phone[0]: +8612355566688
+phone[1]: 0755-2222-3333
+address: Longhua, Shenzhen, 518000
+
+```
+
+### URL 获取 Json
+
+```
+
+package netkiller.json;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.Charset;
+
+import javax.json.*;
+
+public class HttpUrl {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		String URL = "http://www.example.com/json/2/20/0.html";
+		// system.out.println("Requeted URL:" + URL);
+		StringBuilder sb = new StringBuilder();
+		URLConnection urlConn = null;
+		InputStreamReader in = null;
+		try {
+			URL url = new URL(URL);
+			urlConn = url.openConnection();
+			if (urlConn != null)
+				urlConn.setReadTimeout(60 * 1000);
+			if (urlConn != null && urlConn.getInputStream() != null) {
+				in = new InputStreamReader(urlConn.getInputStream(), Charset.defaultCharset());
+				BufferedReader bufferedReader = new BufferedReader(in);
+				if (bufferedReader != null) {
+					int cp;
+					while ((cp = bufferedReader.read()) != -1) {
+						sb.append((char) cp);
+					}
+					bufferedReader.close();
+				}
+			}
+			in.close();
+
+			String jsonString = sb.toString();
+
+			//System.out.println(jsonString);
+
+			JsonReader reader = Json.createReader(new StringReader(jsonString));
+
+			JsonObject jsonObject = reader.readObject();
+
+			reader.close();
+
+			// System.out.println(jsonObject.size());
+
+			for (int i = 0; i < jsonObject.size() - 2; i++) {
+				JsonObject rowObject = jsonObject.getJsonObject(Integer.toString(i));
+				// System.out.println(rowObject.toString());
+				System.out.printf("%s\t%s\t%s\n", rowObject.getJsonString("id"), rowObject.getJsonString("title"),
+						rowObject.getJsonString("ctime"));
+			}
+
+		} catch (Exception e) {
+			throw new RuntimeException("Exception while calling URL:" + URL, e);
+		}
+
+	}
+
+}
+
+```
+
+## Jackson
+
+### ObjectToJSON
+
+```
+
+package cn.netkiller;
+import java.util.Date;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class ObjectToJSON {
+  public static void main(String[] args) throws JsonProcessingException {
+     Test test = new Test("Neo", 123, new Date());   
+     ObjectMapper mapper = new ObjectMapper();     
+     String jsonData = mapper.writerWithDefaultPrettyPrinter()
+		 .writeValueAsString(test);
+     System.out.println(jsonData);
+  }
+} 			
+
+```
+
+### JSONToObject
+
+```
+
+package cn.netkiller;
+import java.io.IOException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class JSONToObject {
+	public static void main(String[] args) throws JsonParseException, JsonMappingException, IOException {
+		 String jsonData = 
+		    "{"
+			  +"\"name\" : \"Neo\","
+			  +"\"age\" : 12,"
+			  +"\"birthDate\" : \"2019-Jun-11 07:00:46 CST\""	
+		   +"}";
+		 ObjectMapper mapper = new ObjectMapper();
+		 Test test = mapper.readValue(jsonData, Test.class);
+		 System.out.println(test.getName()+" | "+test.getBirthDate()+" | "+ test.getAge());
+	}
+} 
+
+```
+
+### JsonNode
+
+```
+
+String[] picture;
+ObjectMapper mapper = new ObjectMapper();
+JsonNode jsonNode = mapper.convertValue(picture, JsonNode.class);		
+
+```

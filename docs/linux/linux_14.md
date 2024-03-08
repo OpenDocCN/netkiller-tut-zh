@@ -1,0 +1,2619 @@
+# 部分 XI. Configuration Management(配置管理)
+
+## 运维自动化
+
+表 8. 表格标题
+
+| 名称 | 流行度 | 开发语言 | 工作模式 | 其他 |
+| --- | --- | --- | --- | --- |
+| Puppet | 主流 | Ruby | C/S |   |
+| Chef | 主流 | Ruby | C/S |   |
+| SaltStack | 主流(新星) | Python | C/S |   |
+| ansible | 一般 | Python | Server 结构无需 client | Redhat 开发 |
+
+## 第 153 章 Ansible - SSH-based configuration management, deployment, and task execution system
+
+http://ansible.github.com/
+
+Ansible is a radically simple model-driven configuration management, deployment, and command execution framework.
+
+## 1. install
+
+```
+yum install ansible
+
+```
+
+## 2. Getting Started
+
+Your first commands
+
+/etc/ansible/hosts
+
+```
+# vim /etc/ansible/hosts
+
+192.168.2.10
+192.168.2.11
+192.168.2.12
+192.168.2.13
+192.168.2.14
+192.168.2.15
+
+```
+
+创建 SSH 公钥与私钥
+
+```
+ssh-keygen
+
+```
+
+将公钥文件复制到目标服务器
+
+```
+ssh-copy-id root@192.168.2.10
+ssh-copy-id root@192.168.2.11
+ssh-copy-id root@192.168.2.12
+ssh-copy-id root@192.168.2.13
+ssh-copy-id root@192.168.2.14
+ssh-copy-id root@192.168.2.15
+
+```
+
+连接与验证测试 ansible all -m ping
+
+```
+# ansible all -m ping
+192.168.2.10 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+192.168.2.13 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+192.168.2.14 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+192.168.2.11 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+192.168.2.15 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+192.168.2.12 | success >> {
+    "module": "ping",
+    "ping": "pong"
+}
+
+```
+
+## 3. ansible - run a command somewhere else
+
+```
+
+Usage: ansible <host-pattern> [options]
+
+Options:
+  -a MODULE_ARGS, --args=MODULE_ARGS
+                        module arguments
+  -k, --ask-pass        ask for SSH password
+  --ask-su-pass         ask for su password
+  -K, --ask-sudo-pass   ask for sudo password
+  --ask-vault-pass      ask for vault password
+  -B SECONDS, --background=SECONDS
+                        run asynchronously, failing after X seconds
+                        (default=N/A)
+  -C, --check           don't make any changes; instead, try to predict some
+                        of the changes that may occur
+  -c CONNECTION, --connection=CONNECTION
+                        connection type to use (default=smart)
+  -f FORKS, --forks=FORKS
+                        specify number of parallel processes to use
+                        (default=5)
+  -h, --help            show this help message and exit
+  -i INVENTORY, --inventory-file=INVENTORY
+                        specify inventory host file
+                        (default=/etc/ansible/hosts)
+  -l SUBSET, --limit=SUBSET
+                        further limit selected hosts to an additional pattern
+  --list-hosts          outputs a list of matching hosts; does not execute
+                        anything else
+  -m MODULE_NAME, --module-name=MODULE_NAME
+                        module name to execute (default=command)
+  -M MODULE_PATH, --module-path=MODULE_PATH
+                        specify path(s) to module library
+                        (default=/usr/share/ansible)
+  -o, --one-line        condense output
+  -P POLL_INTERVAL, --poll=POLL_INTERVAL
+                        set the poll interval if using -B (default=15)
+  --private-key=PRIVATE_KEY_FILE
+                        use this file to authenticate the connection
+  -S, --su              run operations with su
+  -R SU_USER, --su-user=SU_USER
+                        run operations with su as this user (default=root)
+  -s, --sudo            run operations with sudo (nopasswd)
+  -U SUDO_USER, --sudo-user=SUDO_USER
+                        desired sudo user (default=root)
+  -T TIMEOUT, --timeout=TIMEOUT
+                        override the SSH timeout in seconds (default=10)
+  -t TREE, --tree=TREE  log output to this directory
+  -u REMOTE_USER, --user=REMOTE_USER
+                        connect as this user (default=root)
+  --vault-password-file=VAULT_PASSWORD_FILE
+                        vault password file
+  -v, --verbose         verbose mode (-vvv for more, -vvvv to enable
+                        connection debugging)
+  --version             show program's version number and exit
+
+```
+
+### 3.1. host-pattern
+
+匹配所有主机
+
+```
+# ansible all -m ping -u root
+
+```
+
+匹配指定 IP 地址
+
+```
+# ansible 192.168.2.9 -m ping -u root
+
+192.168.2.9 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+```
+
+使用通配符
+
+```
+# ansible 192.168.2.? -m ping -u root
+
+192.168.2.9 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+# ansible 192.168.2.* -m ping -u root
+
+192.168.2.12 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+192.168.2.15 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+192.168.2.9 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+192.168.2.11 | success >> {
+    "changed": false,
+    "ping": "pong"
+}
+
+```
+
+### 3.2. -a MODULE_ARGS, --args=MODULE_ARGS module arguments
+
+```
+ansible all -a 'echo hello'
+
+```
+
+### 3.3. -i INVENTORY, --inventory-file=INVENTORY specify inventory host file (default=/etc/ansible/hosts)
+
+制定一个 hosts 文件
+
+```
+# echo '192.168.6.10' >> hosts
+
+# cat hosts
+192.168.6.10
+
+# ansible all -a 'echo hello' -i hosts -u root
+192.168.6.10 | success | rc=0 >>
+hello
+
+```
+
+### 3.4. -m MODULE_NAME, --module-name=MODULE_NAME module name to execute (default=command)
+
+```
+$ ansible all -m ping -u neo
+
+```
+
+```
+ansible all -m copy -a "src=hosts dest=~/hosts" -i hosts -u vagrant
+
+```
+
+### 3.5. -s, --sudo run operations with sudo (nopasswd)
+
+sudo 模式
+
+```
+# as bruce, sudoing to root
+$ ansible all -m ping -u neo --sudo
+# as bruce, sudoing to batman
+$ ansible all -m ping -u www --sudo --sudo-user neo
+
+```
+
+### 3.6. -u REMOTE_USER, --user=REMOTE_USER connect as this user (default=root)
+
+```
+$ ansible all -m ping -u www
+
+```
+
+### 3.7. 使用实例
+
+```
+# ansible all -m yum -a "name=wget state=present"
+
+```
+
+## 4. ansible-doc - Show Ansible module documentation
+
+```
+# ansible-doc -l
+acl                  Sets and retrieves file ACL information.
+add_host             add a host (and alternatively a group) to the ansible-playbo
+airbrake_deployment  Notify airbrake about app deployments
+alternatives         Manages alternative programs for common commands
+apache2_module       enables/disables a module of the Apache2 webserver
+apt                  Manages apt-packages
+apt_key              Add or remove an apt key
+apt_repository       Add and remove APT repositories
+apt_rpm              apt_rpm package manager
+arista_interface     Manage physical Ethernet interfaces
+arista_l2interface   Manage layer 2 interfaces
+arista_lag           Manage port channel (lag) interfaces
+arista_vlan          Manage VLAN resources
+assemble             Assembles a configuration file from fragments
+assert               Fail with custom message
+at                   Schedule the execution of a command or script file via the a
+authorized_key       Adds or removes an SSH authorized key
+azure                create or terminate a virtual machine in azure
+bigip_facts          Collect facts from F5 BIG-IP devices
+bigip_monitor_http   Manages F5 BIG-IP LTM http monitors
+bigip_monitor_tcp    Manages F5 BIG-IP LTM tcp monitors
+bigip_node           Manages F5 BIG-IP LTM nodes
+bigip_pool           Manages F5 BIG-IP LTM pools
+bigip_pool_member    Manages F5 BIG-IP LTM pool members
+boundary_meter       Manage boundary meters
+bzr                  Deploy software (or files) from bzr branches
+campfire             Send a message to Campfire
+capabilities         Manage Linux capabilities
+cloudformation       create a AWS CloudFormation stack
+command              Executes a command on a remote node
+composer             Dependency Manager for PHP
+copy                 Copies files to remote locations.
+cpanm                Manages Perl library dependencies.
+cron                 Manage cron.d and crontab entries.
+datadog_event        Posts events to DataDog  service
+debconf              Configure a .deb package
+debug                Print statements during execution
+digital_ocean        Create/delete a droplet/SSH_key in DigitalOcean
+digital_ocean_domain Create/delete a DNS record in DigitalOcean
+digital_ocean_sshkey Create/delete an SSH key in DigitalOcean
+django_manage        Manages a Django application.
+dnsimple             Interface with dnsimple.com (a DNS hosting service).
+dnsmadeeasy          Interface with dnsmadeeasy.com (a DNS hosting service).
+docker               manage docker containers
+docker_image         manage docker images
+easy_install         Installs Python libraries
+ec2                  create, terminate, start or stop an instance in ec2, return
+ec2_ami              create or destroy an image in ec2, return imageid
+ec2_ami_search       Retrieve AWS AMI for a given operating system.
+ec2_asg              Create or delete AWS Autoscaling Groups
+ec2_eip              associate an EC2 elastic IP with an instance.
+ec2_elb              De-registers or registers instances from EC2 ELBs
+ec2_elb_lb           Creates or destroys Amazon ELB. - Returns information about
+ec2_facts            Gathers facts about remote hosts within ec2 (aws)
+ec2_group            maintain an ec2 VPC security group.
+ec2_key              maintain an ec2 key pair.
+ec2_lc               Create or delete AWS Autoscaling Launch Configurations
+ec2_metric_alarm     Create/update or delete AWS Cloudwatch 'metric alarms'
+ec2_scaling_policy   Create or delete AWS scaling policies for Autoscaling groups
+ec2_snapshot         creates a snapshot from an existing volume
+ec2_tag              create and remove tag(s) to ec2 resources.
+ec2_vol              create and attach a volume, return volume id and device map.
+ec2_vpc              configure AWS virtual private clouds
+ejabberd_user        Manages users for ejabberd servers
+elasticache          Manage cache clusters in Amazon Elasticache.
+facter               Runs the discovery program `facter' on the remote system...
+fail                 Fail with custom message
+fetch                Fetches a file from remote nodes
+file                 Sets attributes of files
+filesystem           Makes file system on block device
+fireball             Enable fireball mode on remote node
+firewalld            Manage arbitrary ports/services with firewalld
+flowdock             Send a message to a flowdock
+gc_storage           This module manages objects/buckets in Google Cloud Storage.
+gce                  create or terminate GCE instances
+gce_lb               create/destroy GCE load-balancer resources
+gce_net              create/destroy GCE networks and firewall rules
+gce_pd               utilize GCE persistent disk resources
+gem                  Manage Ruby gems
+get_url              Downloads files from HTTP, HTTPS, or FTP to node
+git                  Deploy software (or files) from git checkouts
+github_hooks         Manages github service hooks.
+glance_image         Add/Delete images from glance
+group                Add or remove groups
+group_by             Create Ansible groups based on facts
+grove                Sends a notification to a grove.io channel
+hg                   Manages Mercurial (hg) repositories.
+hipchat              Send a message to hipchat
+homebrew             Package manager for Homebrew
+homebrew_cask        Install/uninstall homebrew casks.
+homebrew_tap         Tap a Homebrew repository.
+hostname             Manage hostname
+htpasswd             manage user files for basic authentication
+include_vars         Load variables from files, dynamically within a task.
+ini_file             Tweak settings in INI files
+irc                  Send a message to an IRC channel
+jabber               Send a message to jabber user or chat room
+jboss                deploy applications to JBoss
+jira                 create and modify issues in a JIRA instance
+kernel_blacklist     Blacklist kernel modules
+keystone_user        Manage OpenStack Identity (keystone) users, tenants and role
+layman               Manage Gentoo overlays
+librato_annotation   create an annotation in librato
+lineinfile           Ensure a particular line is in a file, or replace an existin
+linode               create / delete / stop / restart an instance in Linode Publi
+lldp                 get details reported by lldp
+locale_gen           Creates of removes locales.
+logentries           Module for tracking logs via logentries.com
+lvg                  Configure LVM volume groups
+lvol                 Configure LVM logical volumes
+macports             Package manager for MacPorts
+mail                 Send an email
+modprobe             Add or remove kernel modules
+mongodb_user         Adds or removes a user from a MongoDB database.
+monit                Manage the state of a program monitored via Monit
+mount                Control active and configured mount points
+mqtt                 Publish a message on an MQTT topic for the IoT
+mysql_db             Add or remove MySQL databases from a remote host.
+mysql_replication    Manage MySQL replication
+mysql_user           Adds or removes a user from a MySQL database.
+mysql_variables      Manage MySQL global variables
+nagios               Perform common tasks in Nagios related to downtime and notif
+netscaler            Manages Citrix NetScaler entities
+newrelic_deployment  Notify newrelic about app deployments
+nexmo                Send a SMS via nexmo
+nova_compute         Create/Delete VMs from OpenStack
+nova_keypair         Add/Delete key pair from nova
+npm                  Manage node.js packages with npm
+ohai                 Returns inventory data from `Ohai'
+open_iscsi           Manage iscsi targets with open-iscsi
+openbsd_pkg          Manage packages on OpenBSD.
+openvswitch_bridge   Manage Open vSwitch bridges
+openvswitch_port     Manage Open vSwitch ports
+opkg                 Package manager for OpenWrt
+osx_say              Makes an OSX computer to speak.
+ovirt                oVirt/RHEV platform management
+pacman               Manage packages with `pacman'
+pagerduty            Create PagerDuty maintenance windows
+pause                Pause playbook execution
+ping                 Try to connect to host and return `pong' on success.
+pingdom              Pause/unpause Pingdom alerts
+pip                  Manages Python library dependencies.
+pkgin                Package manager for SmartOS
+pkgng                Package manager for FreeBSD >= 9.0
+pkgutil              Manage CSW-Packages on Solaris
+portage              Package manager for Gentoo
+portinstall          Installing packages from FreeBSD's ports system
+postgresql_db        Add or remove PostgreSQL databases from a remote host.
+postgresql_privs     Grant or revoke privileges on PostgreSQL database objects...
+postgresql_user      Adds or removes a users (roles) from a PostgreSQL database..
+quantum_floating_ip  Add/Remove floating IP from an instance
+quantum_floating_ip_associate Associate or disassociate a particular floating IP with an i
+quantum_network      Creates/Removes networks from OpenStack
+quantum_router       Create or Remove router from openstack
+quantum_router_gateway set/unset a gateway interface for the router with the specif
+quantum_router_interface Attach/Dettach a subnet's interface to a router
+quantum_subnet       Add/Remove floating IP from an instance
+rabbitmq_parameter   Adds or removes parameters to RabbitMQ
+rabbitmq_plugin      Adds or removes plugins to RabbitMQ
+rabbitmq_policy      Manage the state of policies in RabbitMQ.
+rabbitmq_user        Adds or removes users to RabbitMQ
+rabbitmq_vhost       Manage the state of a virtual host in RabbitMQ
+raw                  Executes a low-down and dirty SSH command
+rax                  create / delete an instance in Rackspace Public Cloud
+rax_cbs              Manipulate Rackspace Cloud Block Storage Volumes
+rax_cbs_attachments  Manipulate Rackspace Cloud Block Storage Volume Attachments.
+rax_clb              create / delete a load balancer in Rackspace Public Cloud...
+rax_clb_nodes        add, modify and remove nodes from a Rackspace Cloud Load Bal
+rax_dns              Manage domains on Rackspace Cloud DNS
+rax_dns_record       Manage DNS records on Rackspace Cloud DNS
+rax_facts            Gather facts for Rackspace Cloud Servers
+rax_files            Manipulate Rackspace Cloud Files Containers
+rax_files_objects    Upload, download, and delete objects in Rackspace Cloud File
+rax_identity         Load Rackspace Cloud Identity
+rax_keypair          Create a keypair for use with Rackspace Cloud Servers
+rax_meta             Manipulate metadata for Rackspace Cloud Servers
+rax_network          create / delete an isolated network in Rackspace Public Clou
+rax_queue            create / delete a queue in Rackspace Public Cloud
+rax_scaling_group    Manipulate Rackspace Cloud Autoscale Groups
+rax_scaling_policy   Manipulate Rackspace Cloud Autoscale Scaling Policy
+rds                  create, delete, or modify an Amazon rds instance
+rds_param_group      manage RDS parameter groups
+rds_subnet_group     manage RDS database subnet groups
+redhat_subscription  Manage Red Hat Network registration and subscriptions using
+redis                Various redis commands, slave and flush
+replace              Replace all instances of a particular string in a file using
+rhn_channel          Adds or removes Red Hat software channels
+rhn_register         Manage Red Hat Network registration using the `rhnreg_ks' co
+riak                 This module handles some common Riak operations
+rollbar_deployment   Notify Rollbar about app deployments
+route53              add or delete entries in Amazons Route53 DNS service
+rpm_key              Adds or removes a gpg key from the rpm db
+s3                   idempotent S3 module putting a file into S3.
+script               Runs a local script on a remote node after transferring it..
+seboolean            Toggles SELinux booleans.
+selinux              Change policy and state of SELinux
+service              Manage services.
+set_fact             Set host facts from a task
+setup                Gathers facts about remote hosts
+shell                Execute commands in nodes.
+slack                Send Slack notifications
+slurp                Slurps a file from remote nodes
+sns                  Send Amazon Simple Notification Service (SNS) messages
+stackdriver          Send code deploy and annotation events to stackdriver
+stat                 retrieve file or file system status
+subversion           Deploys a subversion repository.
+supervisorctl        Manage the state of a program or group of programs running v
+svr4pkg              Manage Solaris SVR4 packages
+swdepot              Manage packages with swdepot package manager (HP-UX)
+synchronize          Uses rsync to make synchronizing file paths in your playbook
+sysctl               Manage entries in sysctl.conf.
+template             Templates a file out to a remote server.
+twilio               Sends a text message to a mobile phone through Twilio.
+typetalk             Send a message to typetalk
+ufw                  Manage firewall with UFW
+unarchive            Copies an archive to a remote location and unpack it
+uri                  Interacts with webservices
+urpmi                Urpmi manager
+user                 Manage user accounts
+virt                 Manages virtual machines supported by libvirt
+vsphere_guest        Create/delete/manage a guest VM through VMware vSphere.
+wait_for             Waits for a condition before continuing.
+win_feature          Installs and uninstalls Windows Features
+win_get_url          Fetches a file from a given URL
+win_group            Add and remove local groups
+win_msi              Installs and uninstalls Windows MSI files
+win_ping             A windows version of the classic ping module.
+win_service          Manages Windows services
+win_stat             returns information about a Windows file
+win_user             Manages local Windows user accounts
+xattr                set/retrieve extended attributes
+yum                  Manages packages with the `yum' package manager
+zfs                  Manage zfs
+zypper               Manage packages on SuSE and openSuSE
+zypper_repository    Add and remove Zypper repositories
+
+```
+
+查看模块帮助文档
+
+```
+
+# ansible-doc ping
+> PING
+
+  A trivial test module, this module always returns `pong' on
+  successful contact. It does not make sense in playbooks, but it is
+  useful from `/usr/bin/ansible'
+
+# Test 'webservers' status
+ansible webservers -m ping
+
+```
+
+## 5. ansible-playbook - run an ansible playbook
+
+定义组
+
+```
+# cat /etc/ansible/hosts
+[www]
+192.168.2.23
+
+```
+
+创建 yml 文件
+
+```
+# cat test.yml
+---
+- hosts: www
+  user: root
+  tasks:
+  - name: no selinux
+    action: command /usr/sbin/setenforce 0
+
+  - name: no iptables
+    action: service name=iptables state=stopped
+
+  - name: made up task just to show variables work here
+    action: command /bin/echo release is $release
+
+```
+
+执行任务
+
+```
+# ansible-playbook test.yml -u root -T 1
+
+PLAY [www] *********************
+
+GATHERING FACTS *********************
+ok: [192.168.2.23]
+
+TASK: [no selinux] *********************
+ok: [192.168.2.23]
+
+TASK: [no iptables] *********************
+ok: [192.168.2.23]
+
+TASK: [made up task just to show variables work here] *********************
+ok: [192.168.2.23]
+
+PLAY RECAP *********************
+192.168.2.23                   : ok=4    changed=2    unreachable=0    failed=0
+
+```
+
+```
+# ansible-playbook update.yml --list-hosts
+
+playbook: update.yml
+
+  play #1 (all): host count=11
+    192.168.2.10
+    192.168.2.11
+    192.168.2.12
+    192.168.2.13
+    192.168.2.15
+    192.168.6.10
+    192.168.6.11
+    192.168.6.12
+    192.168.6.13
+    192.168.6.15
+    192.168.2.9
+
+```
+
+### 5.1. 包含文件用法
+
+我们将下面的 playbook 文件分成三个文件，这样更灵活。
+
+```
+---
+- hosts: all
+  remote_user: username
+  sudo: yes
+
+  tasks:
+    - yum: name=wget state=present
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+    - yum: name=gcc state=present
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'			
+
+```
+
+tasks/cenos.yml
+
+```
+- yum: name=wget state=present
+- yum: name=gcc state=present			
+
+```
+
+tasks/deban.yml
+
+```
+- apt: pkg=wget state=present
+- apt: pkg=gcc state=present			
+
+```
+
+playbook.yml
+
+```
+---
+- hosts: all
+  remote_user: username
+  sudo: yes
+
+  tasks:
+    - include: tasks/centos.yml
+      when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+    - include: tasks/debian.yml
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'			
+
+```
+
+执行 playbook
+
+```
+# ansible-playbook playbook.yml			
+
+```
+
+## 第 154 章 Capistrano
+
+## 第 155 章 Puppet
+
+http://www.puppetlabs.com
+
+Puppet is the leading open source platform for IT systems management
+
+## 1. Installing Puppet CentOS 6.3
+
+Choose a Package Source [`yum.puppetlabs.com/`](http://yum.puppetlabs.com/)
+
+```
+# rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-7.noarch.rpm
+# lokkit --disabled --selinux=disabled
+
+```
+
+Install the Puppet Master
+
+```
+yum install puppet-server -y
+service puppetmaster start
+
+chkconfig puppetmaster on
+
+```
+
+Install Puppet on Agent Nodes
+
+```
+yum install puppet -y
+service puppet start
+
+chkconfig puppet on
+
+```
+
+## 2. Puppet 签名
+
+```
+
+cat >> /etc/hosts <<EOD
+172.16.0.1   	puppet.mydomain.com puppet
+172.16.0.20   	www.mydomain.com www
+172.16.0.21   	images.mydomain.com images
+EOD
+
+```
+
+### 2.1. Agent 节点
+
+Node: 服务端进行认证
+
+```
+puppetd --test --server puppet
+
+```
+
+例 155.1. puppetd
+
+```
+# puppetd --test --server puppet
+info: Creating a new SSL key for haproxy
+warning: peer certificate won't be verified in this SSL session
+info: Caching certificate for ca
+warning: peer certificate won't be verified in this SSL session
+warning: peer certificate won't be verified in this SSL session
+info: Creating a new SSL certificate request for haproxy
+info: Certificate Request fingerprint (md5): 91:ED:04:2B:13:8C:61:8F:ED:8E:10:31:CA:8E:5C:06
+warning: peer certificate won't be verified in this SSL session
+warning: peer certificate won't be verified in this SSL session
+warning: peer certificate won't be verified in this SSL session
+Exiting; no certificate found and waitforcert is disabled
+
+```
+
+### 2.2. Master 服务器
+
+认证所有的客户端
+
+```
+puppetca -s -a
+
+```
+
+或者认证某一台客户端
+
+```
+puppetca -l
+puppetca -sign www.mydomain.com
+
+```
+
+例 155.2. puppetca
+
+```
+# puppetca --list
+  "haproxy" (91:ED:04:2B:13:8C:61:8F:ED:8E:10:31:CA:8E:5C:06)
+
+# puppetca --sign haproxy
+notice: Signed certificate request for haproxy
+notice: Removing file Puppet::SSL::CertificateRequest haproxy at '/var/lib/puppet/ssl/ca/requests/haproxy.pem'
+
+```
+
+## 3. test
+
+### 3.1. Master
+
+```
+vim /etc/puppet/manifests/site.pp
+
+node default { file { "/tmp/puppettest1.txt": content => "hello,first puppet manifest"; } }
+
+```
+
+### 3.2. Agent
+
+```
+# puppetd --test --server puppet
+info: Caching catalog for www.mydomain.com
+info: Applying configuration version '1351280410'
+notice: /Stage[main]//Node[default]/File[/tmp/puppettest1.txt]/ensure: defined content as '{md5}886609dedc5c8a0c58f3aa8d566175cc'
+info: Creating state file /var/lib/puppet/state/state.yaml
+notice: Finished catalog run in 0.06 seconds
+
+```
+
+```
+# cat /tmp/puppettest1.txt
+hello,first puppet manifest
+
+```
+
+## 4. 配置文件
+
+### 4.1. /etc/sysconfig/puppet
+
+```
+# The puppetmaster server
+#PUPPET_SERVER=puppet
+
+# If you wish to specify the port to connect to do so here
+#PUPPET_PORT=8140
+
+# Where to log to. Specify syslog to send log messages to the system log.
+#PUPPET_LOG=/var/log/puppet/puppet.log
+
+# You may specify other parameters to the puppet client here
+#PUPPET_EXTRA_OPTS=--waitforcert=500
+
+```
+
+### 4.2. /etc/puppet/fileserver.conf
+
+```
+# cat /etc/puppet/fileserver.conf
+
+# This file consists of arbitrarily named sections/modules
+# defining where files are served from and to whom
+
+# Define a section 'files'
+# Adapt the allow/deny settings to your needs. Order
+# for allow/deny does not matter, allow always takes precedence
+# over deny
+# [files]
+#  path /var/lib/puppet/files
+#  allow *.example.com
+#  deny *.evil.example.com
+#  allow 192.168.0.0/24
+#
+[files]
+path /var/lib/puppet/files
+allow *
+
+```
+
+## 5. manifests
+
+http://docs.puppetlabs.com/learning/
+
+### 5.1. node
+
+default 针对所有节点
+
+```
+node default {
+	file {
+    	"/tmp/helloworld.txt": content => "hello, world";
+	}
+}
+
+```
+
+```
+# cat /etc/puppet/manifests/site.pp
+node default {
+	file {
+		"/tmp/puppettest1.txt":
+			content => "hello,first puppet manifest";
+	}
+}
+
+```
+
+指定节点
+
+```
+# cat /etc/puppet/manifests/test.pp
+node www {
+    file { "/var/www/index.html":
+        source => "/tmp/something",
+        mode   => 666;
+    }
+}
+
+```
+
+多个节点
+
+```
+node 'www','images' {
+	...
+	...
+}
+
+```
+
+### 5.2. group, user 用户组管理
+
+[`docs.puppetlabs.com/references/latest/type.html#user`](http://docs.puppetlabs.com/references/latest/type.html#user)
+
+[`docs.puppetlabs.com/references/latest/type.html#group`](http://docs.puppetlabs.com/references/latest/type.html#group)
+
+如果没有指定 name 的话就会建立和资源名一样的用户名/组名，如果指定了 name 就以 name 指定的用户名/组名为主
+
+#### 5.2.1. group
+
+用户组的添加
+
+```
+node 'node1.example.com' {
+#为该节点添加一个名字为 test 的组，并设置组 ID 为 1000，如果不指定 name 的值，所创建的用户就为 web。
+	group { "web":
+        ensure => "present",
+        gid => 1000,
+        name => "test";
+        }
+#为该节点添加一个 httpd 的组，并且设置 ID 和 web 一样
+	group { "httpd":
+        ensure => "present",
+        gid => 1000,
+        allowdupe => true;
+        }
+#为该节点删除一个 apache 的组。
+	group { "apache":
+        ensure => "absent",
+        }
+}
+
+```
+
+用户组的删除
+
+```
+node 'node1.example.com' {
+#为该节点删除一个 web 的组。
+	group { "web":
+        ensure => "absent",
+        }
+}
+
+```
+
+#### 5.2.2. user
+
+用户的添加
+
+```
+#创建一个用户并且密码为空
+user {"svn":
+        ensure => "present",
+        shell => "/sbin/nologin";
+}
+
+#创建一个 www 用户，设置用户描述为 webmaster,shell 为 bash，
+user {"www":
+        ensure => "present",
+        comment => "webmaster user",
+        name => "www",
+        shell => "/sbin/bash";
+}
+
+#创建一个 gid 为 80 的用户组：
+group { "www":
+        ensure => "present",
+        gid => 80,
+        }
+
+```
+
+用户的删除
+
+```
+user { "neo":
+    ensure => "absent",
+}
+
+```
+
+创建用户并指定密码
+
+生成密码
+
+```
+# grub-md5-crypt
+Password:
+Retype password:
+$1$ZlJ1u0$tdv/dr8pYuHh.eT47F6b70
+
+```
+
+```
+user { "www":
+    ensure => "present",
+    uid => 80,
+    gid => 80,
+    home => "/var/www",
+    shell => "/bin/bash",
+    managehome => true,
+ 	password => '$1$ZlJ1u0$tdv/dr8pYuHh.eT47F6b70';
+}
+
+file {"/var/www":
+        group => 80,
+        owner => 80,
+        mode => 700,
+        ensure => directory;
+}
+
+```
+
+### 5.3. file
+
+```
+file { "/var/www/my/file":
+    source => "/path/in/nfs/or/something",
+    mode   => 666;
+}
+
+```
+
+#### 5.3.1. ensure
+
+```
+ensure => absent; 	#absent 是检测文件是否存在，如果存在则删除
+ensure => present; 	#present 正好相反，如果不存在则创建
+ensure => directory; #创建一个目录的方法
+force = > true; 	#删除一个目录必须加上这个参数
+source => "PATH"; 	#指定数据来源
+backup => ".backup_$uptime_seconds"; 覆盖前备份文件
+
+```
+
+创建目录实例
+
+```
+file { "/tmp/cache":
+  owner => "www",
+  group => "www",
+  mode => 700,
+  ensure => directory;
+}
+
+```
+
+#### 5.3.2. source
+
+source 表示 agent 节点上的目录
+
+```
+node www {
+    file { "/var/www":
+        owner => "nginx",
+        group => "nginx",
+        mode => 700,
+        ensure => directory;
+    }
+
+    file { "/var/www/index.html":
+        source => "/tmp/something",
+        mode   => 666;
+    }
+}
+
+```
+
+从 master 上获取文件
+
+fileserver.conf 配置如下
+
+```
+[files]
+path /var/lib/puppet/files
+allow *
+
+```
+
+site.pp 配置如下
+
+```
+file { "/tmp/test.txt":
+        source  => "puppet://puppet.example.com/files/test.txt",
+    }
+
+```
+
+此处的 files 为 fileserver.conf 中定义模块
+
+#### 5.3.3. owner, group, mode
+
+```
+file
+{ "/opt/testfile":
+	owner => "puppet",
+	group => "puppet",
+	mode => 777;
+}
+
+```
+
+### 5.4. package
+
+```
+present, installed	安装包
+absent，pureged		卸载包
+
+```
+
+```
+# start
+package {
+       "dnsmasq":
+               ensure => installed;
+       }
+
+file {
+       "/etc/resolv.conf":
+               require => Service["dnsmasq"],
+               content => "nameserver 127.0.0.1\n";
+       }
+service {
+       "dnsmasq":
+               ensure => running,
+               pattern => "dnsmasq" ,
+               require => Package["dnsmasq"];
+       }
+# end
+
+```
+
+```
+package {
+	"httpd":
+		ensure    => installed;    	安装 httpd，或用 present 也表示安装
+	["vim","vsftpd"]:
+		ensure=>absent;  			删除 vim 和 vsftpd 软件，使用 pureged 表示彻底删除软件
+}
+
+```
+
+```
+$package_list = [ "screen", "strace", "sudo" ]
+package { $package_list: ensure => "installed" }
+
+```
+
+```
+package { "lamp":
+	ensure => present,
+	provider => rpm,
+	source => "http://192.168.0.1/lamp.rpm";
+}
+
+```
+
+### 5.5. service
+
+```
+service { 'sshd':
+      ensure     => running,
+      enable     => true,
+      hasrestart => true,
+      hasstatus  => true,
+      subscribe  => File['/etc/ssh/sshd_config'],
+}
+
+```
+
+### 5.6. exec
+
+```
+exec { "creates file":
+	cwd => "/tmp",  														#指定命令执行的目录。如果目录不存在，则命令执行失败。
+	command => "/bin/echo helloworld > /tmp/hello.txt",
+	user => "root",
+	path => "/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin";	#命令执行的搜索路径。如果 path 没有被定义，命令需要使用绝对路径。
+}
+
+```
+
+```
+exec { “/srv/puppet/shell/test.sh”:
+    cwd => “/srv/puppet”,
+    timeout => 7200,
+    logoutput => on_failure,
+    user => root,
+    path => ["/sbin", "/usr/sbin", "/usr/local/sbin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/local/java/jre/bin"],
+    require => File["/srv/puppet/shell/test.sh"]
+}
+
+```
+
+### 5.7. cron
+
+```
+cron{ ntpdate:
+      command => "/usr/sbin/ntpdate 172.16.0.1",
+      user => root,
+      minute =>'*/5',
+      require => Package["crontabs"];
+}
+
+```
+
+```
+file { "/etc/cron.hourly/backup":
+	mode => 755,
+	owner => root,
+	group => root,
+	require => Package[mysql],
+	content => template("db/backup.erb");
+}
+
+```
+
+## 6. modules
+
+```
+$ git clone http://github.com/example42/puppet-modules.git
+
+mv puppet-modules /etc/puppet/modules
+
+# vi /etc/puppet/puppet.conf
+...
+[master]
+    modulepath = /etc/puppet/modules
+
+# /etc/init.d/puppetmaster restart
+
+```
+
+```
+vi /etc/puppet/manifests/node.pp
+
+node 'web.example.com' {
+    include apache
+
+    include php
+    include php::pear
+    include php::apc
+    php::module { mysql: }
+    php::module { curl: }
+    php::module { gd: }
+    php::module { idn: }
+    php::module { imagick: }
+    php::module { imap: }
+    php::module { mcrypt: }
+    php::module { ming: }
+    php::module { ps: }
+    php::module { pspell: }
+    php::module { recode: }
+    php::module { snmp: }
+    php::module { tidy: }
+    php::module { xmlrpc: }
+    php::module { xsl: }
+    php::module { ldap: }
+
+    include mysql
+}
+
+```
+
+```
+puppet agent --test --server=puppet.example.com
+
+```
+
+## 7. firewall 配置
+
+```
+-A INPUT -p tcp -m state --state NEW --dport 8140 -j ACCEPT
+
+```
+
+## 8. debug
+
+### 8.1. master
+
+```
+puppetmasterd --debug --daemonize --verbose
+
+```
+
+### 8.2. node
+
+```
+puppetd --test --trace --debug
+
+```
+
+```
+# puppetd --test --trace --debug
+debug: Puppet::Type::User::ProviderDirectoryservice: file /usr/bin/dscl does not exist
+debug: Puppet::Type::User::ProviderUser_role_add: file roledel does not exist
+debug: Puppet::Type::User::ProviderPw: file pw does not exist
+debug: Puppet::Type::User::ProviderLdap: true value when expecting false
+debug: Failed to load library 'rubygems' for feature 'rubygems'
+debug: Puppet::Type::File::ProviderMicrosoft_windows: feature microsoft_windows is missing
+debug: Failed to load library 'ldap' for feature 'ldap'
+debug: /File[/var/lib/puppet/state/state.yaml]: Autorequiring File[/var/lib/puppet/state]
+debug: /File[/var/lib/puppet/state]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/public_keys/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/public_keys]
+debug: /File[/var/lib/puppet/ssl]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/certificate_requests]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/etc/puppet/puppet.conf]: Autorequiring File[/etc/puppet]
+debug: /File[/var/lib/puppet/ssl/certs]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/clientbucket]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/certs/ca.pem]: Autorequiring File[/var/lib/puppet/ssl/certs]
+debug: /File[/var/lib/puppet/ssl/private]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/facts]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/private_keys/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/private_keys]
+debug: /File[/var/lib/puppet/ssl/crl.pem]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/lib]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/client_yaml]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/state/last_run_summary.yaml]: Autorequiring File[/var/lib/puppet/state]
+debug: /File[/var/lib/puppet/ssl/certs/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/certs]
+debug: /File[/var/lib/puppet/client_data]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/public_keys]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/private_keys]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/state/graphs]: Autorequiring File[/var/lib/puppet/state]
+debug: /File[/var/run/puppet/agent.pid]: Autorequiring File[/var/run/puppet]
+debug: /File[/var/lib/puppet/classes.txt]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/state/state.yaml]/mode: mode changed '640' to '660'
+debug: Finishing transaction 70258153162980
+debug: /File[/var/lib/puppet/ssl/certs]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/private_keys]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/private]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/crl.pem]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/certs/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/certs]
+debug: /File[/var/lib/puppet/lib]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/certificate_requests]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/ssl/public_keys]: Autorequiring File[/var/lib/puppet/ssl]
+debug: /File[/var/lib/puppet/state]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/private_keys/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/private_keys]
+debug: /File[/var/lib/puppet/ssl/certs/ca.pem]: Autorequiring File[/var/lib/puppet/ssl/certs]
+debug: /File[/var/lib/puppet/ssl]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/facts]: Autorequiring File[/var/lib/puppet]
+debug: /File[/var/lib/puppet/ssl/public_keys/info.com.pem]: Autorequiring File[/var/lib/puppet/ssl/public_keys]
+debug: Finishing transaction 70258153219940
+debug: Using cached certificate for ca
+debug: Using cached certificate for info.com
+debug: Finishing transaction 70258152746740
+debug: Loaded state in 0.00 seconds
+debug: Using cached certificate for ca
+debug: Using cached certificate for info.com
+debug: Using cached certificate_revocation_list for ca
+debug: catalog supports formats: b64_zlib_yaml dot pson raw yaml; using pson
+info: Caching catalog for info.com
+debug: Creating default schedules
+debug: Loaded state in 0.00 seconds
+info: Applying configuration version '1351280410'
+debug: Finishing transaction 70258154614200
+debug: Storing state
+debug: Stored state in 0.00 seconds
+notice: Finished catalog run in 0.02 seconds
+
+```
+
+## 9. FAQ
+
+### 9.1. err: Could not request certificate: No route to host - connect(2)
+
+```
+err: Could not request certificate: Connection refused - connect(2)
+Exiting; failed to retrieve certificate and waitforcert is disabled
+
+```
+
+关闭防火墙可以解决
+
+### 9.2. No help available unless you have RDoc::usage installed
+
+```
+#  puppetmasterd --help
+No help available unless you have RDoc::usage installed
+
+```
+
+```
+# yum install ruby-rdoc
+
+```
+
+## 第 156 章 SaltStack
+
+http://saltstack.com/
+
+## 1. 安装 Salt Stack
+
+### 1.1. 服务端安装
+
+```
+yum install salt-master
+chkconfig salt-master on
+service salt-master start
+
+```
+
+```
+cp /etc/salt/master{,.original}
+
+```
+
+### 1.2. 客户端安装
+
+```
+yum install salt-minion
+chkconfig salt-minion on
+
+```
+
+配置 master
+
+```
+
+cp /etc/salt/minion{,.original}
+sed -i '12,12imaster: salt.example.org' /etc/salt/minion
+
+cat >> /etc/hosts <<'EOF'
+
+192.168.2.1    salt.example.org
+EOF
+
+```
+
+```
+service salt-minion start
+
+```
+
+### 1.3. 防火墙配置
+
+```
+-A INPUT -p tcp -m multiport --dports 4505,4506 -m state --state NEW -j ACCEPT
+
+```
+
+### 1.4. key 管理
+
+登陆 master 服务器，输入 salt-key 查看接入的 minion 客户端。
+
+```
+# salt-key
+Accepted Keys:
+Unaccepted Keys:
+haproxy
+Rejected Keys:
+
+```
+
+接受客户端 key
+
+```
+# salt-key -a haproxy
+The following keys are going to be accepted:
+Unaccepted Keys:
+haproxy
+Proceed? [n/Y] y
+Key for minion haproxy accepted.
+
+```
+
+至此，master 与 minion 已经建立了信任关系
+
+### 1.5. 测试
+
+你可以运行下面命令测试你的 minion
+
+```
+salt '*' test.arg 1 "two" 3.1 txt="hello" wow='{a: 1, b: "hello"}'
+salt '*' test.arg_repr 1 "two" 3.1 txt="hello" wow='{a: 1, b: "hello"}'
+salt '*' test.collatz 3
+salt '*' test.conf_test
+salt '*' test.cross_test file.gid_to_group 0
+salt '*' test.echo 'foo bar baz quo qux'
+salt '*' test.fib 3
+salt '*' test.get_opts
+salt '*' test.kwarg num=1 txt="two" env='{a: 1, b: "hello"}'
+salt '*' test.not_loaded
+salt '*' test.outputter foobar
+salt '*' test.ping
+salt '*' test.provider service
+salt '*' test.providers
+salt '*' test.rand_sleep 60
+salt '*' test.retcode 42
+salt '*' test.sleep 20
+salt '*' test.tty tty0 'This is a test'
+salt '*' test.tty pts3 'This is a test'
+salt '*' test.version
+salt '*' test.versions_information
+salt '*' test.versions_report
+
+```
+
+我通常只作 ping 测试
+
+```
+# salt '*' test.ping
+haproxy:
+    True
+
+# salt '*' test.versions_information
+haproxy:
+    ----------
+    Jinja2:
+        unknown
+    M2Crypto:
+        0.20.2
+    PyYAML:
+        3.09
+    PyZMQ:
+        2.2.0.1
+    Python:
+        2.6.6 (r266:84292, Feb 22 2013, 00:00:18)
+    Salt:
+        0.16.0
+    ZMQ:
+        3.2.3
+    msgpack-pure:
+        None
+    msgpack-python:
+        0.1.13
+    pycrypto:
+        2.0.1
+
+# salt '*' test.versions_report
+haproxy:
+               Salt: 0.16.0
+             Python: 2.6.6 (r266:84292, Feb 22 2013, 00:00:18)
+             Jinja2: unknown
+           M2Crypto: 0.20.2
+     msgpack-python: 0.1.13
+       msgpack-pure: Not Installed
+           pycrypto: 2.0.1
+             PyYAML: 3.09
+              PyZMQ: 2.2.0.1
+                ZMQ: 3.2.3
+
+```
+
+单独测试某一节点
+
+```
+salt 'haproxy' test.ping
+
+```
+
+### 1.6. Demo
+
+这里为你掩饰的是，将 iptables 文件推送到所有的服务器上。
+
+# vim /srv/salt/top.sis
+
+```
+base:
+  '*':
+    - iptables
+
+```
+
+# vim /srv/salt/iptables.sls
+
+```
+/etc/sysconfig/iptables:
+  file:
+    - managed
+    - source: salt://iptables
+    - user: root
+    - group: root
+    - mode: 644
+    - backup: minion
+
+```
+
+# vim /srv/salt/iptables
+
+```
+# Firewall configuration written by system-config-firewall
+# Manual customization of this file is not recommended.
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 80 -j ACCEPT
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 443 -j ACCEPT
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+COMMIT
+
+```
+
+单独部署 iptables
+
+```
+# salt '*' state.sls iptables
+
+```
+
+按照 top.sls 的设置执行
+
+```
+salt '*' state.highstate -v
+
+```
+
+## 2. salt-key - Salt key is used to manage Salt authentication keys
+
+查询 key 状态
+
+```
+# salt-key
+
+Accepted Keys:
+centos6.example.com
+haproxy.example.com
+Unaccepted Keys:
+Rejected Keys:
+
+```
+
+查看来自 minion 的 key
+
+```
+# salt-key -L
+
+```
+
+接受所有 key
+
+```
+# salt-key -A
+
+```
+
+删除 key
+
+```
+# salt-key -d haproxy
+
+The following keys are going to be deleted:
+Accepted Keys:
+haproxy
+Proceed? [N/y] y
+
+```
+
+显示 key 文件内容
+
+```
+# salt-key -p centos6.example.com
+Accepted Keys:
+centos6.example.com:  -----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAw7E3x8jok8xsaKYJq948
+HsElTLGR1AVBNoIT2EDAZkX/Zhyl4d0BT1C9JJN6/R/9tV9yr1+p7/GbbtPr+9GK
+9ahO4S9QKtVCwyQVIaFRdZTlmHspCfE2gBgqXKNZfgCH2IILS8fJBo5GMvNgajRi
+qB3TShCV/UOBmkQ2H6p52xfhuubpAzrmdVVZOa03ASBTkNRUmE1kDIeZcIILBug3
+XbsXYPv+Uz+rujxzSa5P2eF6O9kcr1QCNYHj3pgm2VL7ALkkbzCLbiAWSLVMmctQ
+Fx/uvRjZG+Bh/nmQ4Kz33pLgiyhHNaA+dXsF8YTrpU3QHb+UvByZH0Lwf//ekRzT
+QeSW9noZGlWkYn2uSAbEuIT9kg7xwd3rB/iEqKGBJcfn5kgaxstUywqr9i+F8Dhd
+X9hs3o46WIZMFeFX237oeXZ1lHgEwioZIYtmgEebqsMl9LT3EFG5/j2EzkEbE/Di
+hTJETbm7dttSj2tcwmb+S8hBJ6YRy1qTZsTYsdgjV3GC2U9lMeGjzhKB/znwR+kP
+8BL0JnVEVVImzdTG1Y1sGRwbHXmOPGpyKCw/oLtjxw5nZuTRMeZcEd5Jj6pZBISv
++Pqw+KdiiHUg47sP2G7wlZpLIvyUv69/Jq0bIP4BqTi1rDvWtSuySbkQoKFEFhMc
+Nff3pZp7Clm92WXb3+LS0z0CAwEAAQ==
+-----END PUBLIC KEY-----
+
+```
+
+key 文件存储位置
+
+```
+# ll /etc/salt/pki/master/minions
+total 8
+-rw-r--r-- 1 root root 800 Aug 21 14:07 centos6.example.com
+-rw-r--r-- 1 root root 800 Aug 21 14:08 haproxy.example.com
+
+```
+
+## 3. salt 命令
+
+精确匹配
+
+```
+# salt 'haproxy' test.ping
+haproxy:
+    True
+
+```
+
+通配符匹配
+
+```
+# salt 'ha*' test.ping
+haproxy:
+    True
+
+```
+
+运行模块，目录如下
+
+```
+# find /srv/salt/php
+/srv/salt/php
+/srv/salt/php/init.sls
+/srv/salt/php/php-fpm.sls
+/srv/salt/php/cli.sls
+
+```
+
+php 目录下含多个 sls 文件
+
+```
+salt 'centos*' state.sls php.cli
+salt 'centos*' state.sls php.php-fpm
+
+```
+
+### 3.1. cmd
+
+#### 3.1.1. cmd.run
+
+```
+salt '*' cmd.run 'ls -l /etc'
+
+```
+
+#### 3.1.2. cmd.script
+
+```
+salt '*' cmd.script salt://iptables.sh
+
+```
+
+### 3.2. pkg.install
+
+```
+salt '*' pkg.install vim
+
+```
+
+### 3.3. network.interfaces
+
+```
+salt '*' network.interfaces
+
+```
+
+### 3.4. salt example
+
+例 156.1. salt command
+
+```
+
+# salt '*' sys.doc | grep "salt '*'"
+
+salt '*' acl.delfacl user myuser /tmp/house/kitchen
+salt '*' acl.delfacl default:group mygroup /tmp/house/kitchen
+salt '*' acl.delfacl d:u myuser /tmp/house/kitchen
+salt '*' acl.delfacl g myuser /tmp/house/kitchen /tmp/house/livingroom
+salt '*' acl.getfacl /tmp/house/kitchen
+salt '*' acl.getfacl /tmp/house/kitchen /tmp/house/livingroom
+salt '*' acl.addfacl user myuser rwx /tmp/house/kitchen
+salt '*' acl.addfacl default:group mygroup rx /tmp/house/kitchen
+salt '*' acl.addfacl d:u myuser 7 /tmp/house/kitchen
+salt '*' acl.addfacl g mygroup 0 /tmp/house/kitchen /tmp/house/livingroom
+salt '*' acl.version
+salt '*' acl.wipefacls /tmp/house/kitchen
+salt '*' acl.wipefacls /tmp/house/kitchen /tmp/house/livingroom
+salt '*' aliases.get_target <alias>
+salt '*' aliases.has_target <alias> <target>
+salt '*' aliases.list_aliases
+salt '*' aliases.rm_alias <alias>
+salt '*' aliases.set_target <alias> <target>
+salt '*' alternatives.check_installed name path
+salt '*' alternatives.display <command name>
+salt '*' alternatives.install name link path priority
+salt '*' alternatives.remove name path
+salt '*' alternatives.show_current emacs
+salt '*' archive.gunzip /tmp/sourcefile.txt.gz
+salt '*' archive.gunzip template=jinja /tmp/{{grains.id}}.txt.gz
+salt '*' archive.gzip /tmp/sourcefile.txt
+salt '*' archive.gzip template=jinja /tmp/{{grains.id}}.txt
+salt '*' archive.rar /tmp/rarfile.rar /tmp/sourcefile1 /tmp/sourcefile2
+salt '*' archive.rar template=jinja /tmp/rarfile.rar /tmp/sourcefile1 /tmp/{{grains.id}}.txt
+salt '*' archive.tar cjvf /tmp/tarfile.tar.bz2 /tmp/file_1 /tmp/file_2
+salt '*' archive.tar template=jinja cjvf /tmp/salt.tar.bz2 {{grains.saltpath}}
+salt '*' archive.unrar /tmp/rarfile.rar /home/strongbad/ file_1 file_2
+salt '*' archive.unrar template=jinja /tmp/rarfile.rar /tmp/{{grains.id}}/ file_1 file_2
+salt '*' archive.unzip /tmp/zipfile.zip /home/strongbad/ file_1 file_2
+salt '*' archive.unzip template=jinja /tmp/zipfile.zip /tmp/{{grains.id}}/ file_1 file_2
+salt '*' archive.zip /tmp/zipfile.zip /tmp/sourcefile1 /tmp/sourcefile2
+salt '*' archive.zip template=jinja /tmp/zipfile.zip /tmp/sourcefile1 /tmp/{{grains.id}}.txt
+salt '*' cmd.exec_code ruby 'puts "cheese"'
+salt '*' cmd.has_exec cat
+salt '*' cmd.retcode "file /bin/bash"
+salt '*' cmd.retcode template=jinja "file {{grains.pythonpath[0]}}/python"
+salt '*' cmd.retcode "grep f" stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.run "ls -l | awk '/foo/{print \$2}'"
+salt '*' cmd.run template=jinja "ls -l /tmp/{{grains.id}} | awk '/foo/{print \$2}'"
+salt '*' cmd.run "Get-ChildItem C:\ " shell='powershell'
+salt '*' cmd.run "grep f" stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.run_all "ls -l | awk '/foo/{print \$2}'"
+salt '*' cmd.run_all template=jinja "ls -l /tmp/{{grains.id}} | awk '/foo/{print \$2}'"
+salt '*' cmd.run_all "grep f" stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.run_stderr "ls -l | awk '/foo/{print \$2}'"
+salt '*' cmd.run_stderr template=jinja "ls -l /tmp/{{grains.id}} | awk '/foo/{print \$2}'"
+salt '*' cmd.run_stderr "grep f" stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.run_stdout "ls -l | awk '/foo/{print \$2}'"
+salt '*' cmd.run_stdout template=jinja "ls -l /tmp/{{grains.id}} | awk '/foo/{print \$2}'"
+salt '*' cmd.run_stdout "grep f" stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.script salt://scripts/runme.sh
+salt '*' cmd.script salt://scripts/runme.sh 'arg1 arg2 "arg 3"'
+salt '*' cmd.script salt://scripts/windows_task.ps1 args=' -Input c:\tmp\infile.txt' shell='powershell'
+salt '*' cmd.script salt://scripts/runme.sh stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.script_retcode salt://scripts/runme.sh
+salt '*' cmd.script_retcode salt://scripts/runme.sh stdin='one\ntwo\nthree\nfour\nfive\n'
+salt '*' cmd.which cat
+salt '*' cmd.which_bin '[pip2, pip, pip-python]'
+salt '*' config.backup_mode
+salt '*' config.dot_vals host
+salt '*' qemu.gather_bootstrap_script True
+salt '*' config.get pkg:apache
+salt '*' config.manage_mode
+salt '*' config.option redis.host
+salt '*' config.valid_fileproto salt://path/to/file
+salt '*' cp.cache_dir salt://path/to/dir
+salt '*' cp.cache_file salt://path/to/file
+salt '*' cp.cache_files salt://pathto/file1,salt://pathto/file1
+salt '*' cp.cache_local_file /etc/hosts
+salt '*' cp.cache_master
+salt '*' cp.get_dir salt://path/to/dir/ /minion/dest
+salt '*' cp.get_file salt://path/to/file /minion/dest
+salt '*' cp.get_file "salt://{{grains.os}}/vimrc" /etc/vimrc template=jinja
+salt '*' cp.get_file_str salt://my/file
+salt '*' cp.get_template salt://path/to/template /minion/dest
+salt '*' cp.get_url salt://my/file /tmp/mine
+salt '*' cp.get_url http://www.slashdot.org /tmp/index.html
+salt '*' cp.hash_file salt://path/to/file
+salt '*' cp.is_cached salt://path/to/file
+salt '*' cp.list_master
+salt '*' cp.list_master_dirs
+salt '*' cp.list_minion
+salt '*' cp.list_states
+salt '*' cp.push /etc/fstab
+salt '*' cron.list_tab root
+salt '*' cron.list_tab root
+salt '*' cron.raw_cron root
+salt '*' cron.rm_job root /usr/local/weekly
+salt '*' cron.rm_job root /usr/bin/foo dayweek=1
+salt '*' cron.rm_env root MAILTO
+salt '*' cron.rm_job root /usr/local/weekly
+salt '*' cron.rm_job root /usr/bin/foo dayweek=1
+salt '*' cron.set_env root MAILTO user@example.com
+salt '*' cron.set_job root '*' '*' '*' '*' 1 /usr/local/weekly
+salt '*' cron.set_special @hourly 'echo foobar'
+salt '*' cron.write_cron_file root /tmp/new_cron
+salt '*' cron.write_cron_file_verbose root /tmp/new_cron
+salt '*' daemontools.full_restart <service name>
+salt '*' daemontools.get_all
+salt '*' daemontools.reload <service name>
+salt '*' daemontools.restart <service name>
+salt '*' daemontools.start <service name>
+salt '*' daemontools.status <service name>
+salt '*' daemontools.stop <service name>
+salt '*' daemontools.term <service name>
+salt '*' data.cas <key> <value> <old_value>
+salt '*' data.clear
+salt '*' data.dump '{'eggs': 'spam'}'
+salt '*' data.getval <key>
+salt '*' data.getvals <key> [<key> ...]
+salt '*' data.load
+salt '*' data.update <key> <value>
+salt '*' disk.inodeusage
+salt '*' disk.usage
+salt '*' django.collectstatic <settings_module>
+salt '*' django.command <settings_module> <command>
+salt '*' django.createsuperuser <settings_module> user user@example.com
+salt '*' django.loaddata <settings_module> <comma delimited list of fixtures>
+salt '*' django.syncdb <settings_module>
+salt '*' dnsmasq.version
+salt '*' dnsmasq.get_config
+salt '*' dnsmasq.get_config file=/etc/dnsmasq.conf
+salt '*' dnsmasq.set_config domain=mydomain.com
+salt '*' dnsmasq.set_config follow=False domain=mydomain.com
+salt '*' dnsmasq.set_config file=/etc/dnsmasq.conf domain=mydomain.com
+salt '*' dnsmasq.version
+salt '*' dnsutil.hosts_append /etc/hosts 127.0.0.1 ad1.yuk.co,ad2.yuk.co
+salt '*' dnsutil.hosts_delete /etc/hosts ad1.yuk.co
+salt '*' dnsutil.hosts_delete /etc/hosts ad2.yuk.co,ad1.yuk.co
+salt '*' dnsutil.parse_hosts
+salt '*' event.fire 'stuff to be in the event' 'tag'
+salt '*' event.fire_master 'stuff to be in the event' 'tag'
+salt '*' extfs.attributes /dev/sda1
+salt '*' extfs.blocks /dev/sda1
+salt '*' extfs.dump /dev/sda1
+salt '*' extfs.mkfs /dev/sda1 fs_type=ext4 opts='acl,noexec'
+salt '*' extfs.tune /dev/sda1 force=True label=wildstallyns opts='acl,noexec'
+salt '*' file.append /etc/motd \
+salt '*' file.check_file_meta /etc/httpd/conf.d/httpd.conf salt://http/httpd.conf '{hash_type: 'md5', 'hsum': <md5sum>}' root, root, '755' base
+salt '*' file.check_hash /etc/fstab md5=<md5sum>
+salt '*' file.check_managed /etc/httpd/conf.d/httpd.conf salt://http/httpd.conf '{hash_type: 'md5', 'hsum': <md5sum>}' root, root, '755' jinja True None None base
+salt '*' file.check_perms /etc/sudoers '{}' root root 400
+salt '*' file.chgrp /etc/passwd root
+salt '*' file.chown /etc/passwd root root
+salt '*' file.comment /etc/modules pcspkr
+salt '*' file.contains /etc/crontab 'mymaintenance.sh'
+salt '*' file.contains_glob /etc/foobar '*cheese*'
+salt '*' file.contains_regex /etc/crontab
+salt '*' file.contains_regex_multiline /etc/crontab '^maint'
+salt '*' file.directory_exists /etc
+salt '*' file.file_exists /etc/passwd
+salt '*' file.find / type=f name=\*.bak size=+10m
+salt '*' file.find /var mtime=+30d size=+10m print=path,size,mtime
+salt '*' file.find /var/log name=\*.[0-9] mtime=+30d size=+10m delete
+salt '*' file.get_diff /home/fred/.vimrc salt://users/fred/.vimrc
+salt '*' file.get_gid /etc/passwd
+salt '*' file.get_group /etc/passwd
+salt '*' file.get_hash /etc/shadow
+salt '*' file.get_managed /etc/httpd/conf.d/httpd.conf jinja salt://http/httpd.conf '{hash_type: 'md5', 'hsum': <md5sum>}' root root '755' base None None
+salt '*' file.get_mode /etc/passwd
+salt '*' file.get_selinux_context /etc/hosts
+salt '*' file.get_sum /etc/passwd sha512
+salt '*' file.get_uid /etc/passwd
+salt '*' file.get_user /etc/passwd
+salt '*' file.gid_to_group 0
+salt '*' file.group_to_gid root
+salt '*' file.makedirs /opt/code
+salt '*' file.makedirs_perms /opt/code
+salt '*' file.manage_file /etc/httpd/conf.d/httpd.conf '{}' salt://http/httpd.conf '{hash_type: 'md5', 'hsum': <md5sum>}' root root '755' base ''
+salt '*' file.mkdir /opt/jetty/context
+salt '*' file.patch /opt/file.txt /tmp/file.txt.patch
+salt '*' file.sed /etc/httpd/httpd.conf 'LogLevel warn' 'LogLevel info'
+salt '*' file.remove /tmp/foo
+salt '*' file.rename /path/to/src /path/to/dst
+salt '*' file.restorecon /home/user/.ssh/authorized_keys
+salt '*' file.sed /etc/httpd/httpd.conf 'LogLevel warn' 'LogLevel info'
+salt '*' file.contains /etc/crontab 'mymaintenance.sh'
+salt '*' file.set_mode /etc/passwd 0644
+salt '*' file.set_selinux_context path <role> <type> <range>
+salt '*' file.source_list salt://http/httpd.conf '{hash_type: 'md5', 'hsum': <md5sum>}' base
+salt '*' file.stats /etc/passwd
+salt '*' file.symlink /path/to/file /path/to/link
+salt '*' file.touch /var/log/emptyfile
+salt '*' file.uid_to_user 0
+salt '*' file.uncomment /etc/hosts.deny 'ALL: PARANOID'
+salt '*' file.user_to_uid root
+salt '*' gem.install vagrant
+salt '*' gem.sources_add http://rubygems.org/
+salt '*' gem.sources_list
+salt '*' gem.sources_remove http://rubygems.org/
+salt '*' gem.uninstall vagrant
+salt '*' gem.update vagrant
+salt '*' gem.update_system
+salt '*' git.add /path/to/git/repo /path/to/file
+salt '*' git.archive /path/to/repo /path/to/archive.tar.gz
+salt '*' git.checkout /path/to/repo somebranch user=jeff
+salt '*' git.checkout /path/to/repo opts='testbranch -- conf/file1 file2'
+salt '*' git.checkout /path/to/repo rev=origin/mybranch opts=--track
+salt '*' git.clone /path/to/repo git://github.com/saltstack/salt.git
+salt '*' git.clone /path/to/repo.git\
+salt '*' git.commit /path/to/git/repo 'The commit message'
+salt '*' git.config_get /path/to/repo user.email
+salt '*' git.config_set /path/to/repo user.email me@example.com
+salt '*' git.describe /path/to/repo
+salt '*' git.describe /path/to/repo develop
+salt '*' git.fetch /path/to/repo '--all'
+salt '*' git.fetch cwd=/path/to/repo opts='--all' user=johnny
+salt '*' git.init /path/to/repo.git opts='--bare'
+salt '*' git.fetch /path/to/repo
+salt '*' git.merge /path/to/repo @{upstream}
+salt '*' git.pull /path/to/repo opts='--rebase origin master'
+salt '*' git.push /path/to/git/repo remote-name
+salt '*' git.rebase /path/to/repo master
+salt '*' git.rebase /path/to/repo 'origin master'
+salt '*' git.remote_get /path/to/repo
+salt '*' git.remote_get /path/to/repo upstream
+salt '*' git.remote_set /path/to/repo remote_url=git@github.com:saltstack/salt.git
+salt '*' git.remote_set /path/to/repo origin git@github.com:saltstack/salt.git
+salt '*' git.remotes /path/to/repo
+salt '*' git.reset /path/to/repo master
+salt '*' git.revision /path/to/repo mybranch
+salt '*' git.rm /path/to/git/repo /path/to/file
+salt '*' git.stash /path/to/repo master
+salt '*' git.status /path/to/git/repo
+salt '*' git.submodule /path/to/repo.git/sub/repo
+salt '*' grains.get pkg:apache
+salt '*' grains.item os
+salt '*' grains.item os osrelease oscodename
+salt '*' grains.item host sanitize=True
+salt '*' grains.items
+salt '*' grains.items sanitize=True
+salt '*' grains.ls
+salt '*' grains.setval key val
+salt '*' group.add foo 3456
+salt '*' group.chgid foo 4376
+salt '*' group.delete foo
+salt '*' group.getent
+salt '*' group.info foo
+salt '*' grub.conf
+salt '*' grub.version
+salt '*' hg.archive /path/to/repo output=/tmp/archive.tgz fmt=tgz
+salt '*' hg.clone /path/to/repo https://bitbucket.org/birkenfeld/sphinx
+salt '*' hg.describe /path/to/repo
+salt '*' hg.pull /path/to/repo '-u'
+salt '*' hg.revision /path/to/repo mybranch
+salt '*' hosts.add_host <ip> <alias>
+salt '*' hosts.get_alias <ip addr>
+salt '*' hosts.get_ip <hostname>
+salt '*' hosts.has_pair <ip> <alias>
+salt '*' hosts.list_hosts
+salt '*' hosts.rm_host <ip> <alias>
+salt '*' hosts.set_host <ip> <alias>
+salt '*' qemu_nbd.bootstrap /srv/salt-images/host.qcow 4096 qcow2
+salt '*' img.mount_image /tmp/foo
+salt '*' img.seed /tmp/image.qcow2
+salt '*' img.umount_image /mnt/foo
+salt '*' ip.apply_network_settings
+salt '*' ip.build_bond bond0 mode=balance-alb
+salt '*' ip.build_interface eth0 eth <settings>
+salt '*' ip.build_network_settings <settings>
+salt '*' ip.build_routes eth0 <settings>
+salt '*' ip.down eth0
+salt '*' ip.get_bond bond0
+salt '*' ip.get_interface eth0
+salt '*' ip.get_network_settings
+salt '*' ip.get_routes eth0
+salt '*' ip.up eth0
+salt '*' iptables.append filter INPUT rule='-m state --state RELATED,ESTABLISHED -j ACCEPT'
+salt '*' iptables.delete filter INPUT position=3
+salt '*' iptables.delete filter INPUT rule='-m state --state RELATED,ESTABLISHED -j ACCEPT'
+salt '*' iptables.flush filter
+salt '*' iptables.get_policy filter INPUT
+salt '*' iptables.get_rules
+salt '*' iptables.get_saved_policy filter INPUT
+salt '*' iptables.get_saved_policy filter INPUT conf_file=/etc/iptables.saved
+salt '*' iptables.get_saved_rules
+salt '*' iptables.insert filter INPUT position=3 rule='-m state --state RELATED,ESTABLISHED -j ACCEPT'
+salt '*' iptables.save /etc/sysconfig/iptables
+salt '*' iptables.set_policy filter INPUT ACCEPT
+salt '*' iptables.version
+salt '*' key.finger
+salt '*' keyboard.get_sys
+salt '*' keyboard.get_x
+salt '*' keyboard.set_sys dvorak
+salt '*' keyboard.set_x dvorak
+salt '*' kmod.available
+salt '*' kmod.check_available kvm
+salt '*' kmod.is_loaded kvm
+salt '*' kmod.load kvm
+salt '*' kmod.lsmod
+salt '*' kmod.mod_list
+salt '*' kmod.remove kvm
+salt '*' locale.get_locale
+salt '*' locale.list_avail
+salt '*' locale.set_locale 'en_US.UTF-8'
+salt '*' locate.locate
+salt '*' locate.stats
+salt '*' locate.updatedb
+salt '*' locate.version
+salt '*' logrotate.set rotate 2
+salt '*' logrotate.set /var/log/wtmp rotate 2
+salt '*' logrotate.show_conf
+salt '*' lowpkg.file_list httpd
+salt '*' lowpkg.file_list httpd postfix
+salt '*' lowpkg.file_list
+salt '*' lowpkg.file_list httpd
+salt '*' lowpkg.file_list httpd postfix
+salt '*' lowpkg.file_list
+salt '*' lowpkg.list_pkgs
+salt '*' lowpkg.verify
+salt '*' match.compound 'L@cheese,foo and *'
+salt '*' match.data 'spam:eggs'
+salt '*' match.glob '*'
+salt '*' match.grain 'os:Ubuntu'
+salt '*' match.grain_pcre 'os:Fedo.*'
+salt '*' match.ipcidr '192.168.44.0/24'
+salt '*' match.list 'server1,server2'
+salt '*' match.pcre '.*'
+salt '*' match.pillar 'cheese:foo'
+salt '*' mine.get '*' network.interfaces
+salt '*' mine.get 'os:Fedora' network.interfaces grain
+salt '*' mine.send network.interfaces eth0
+salt '*' mine.update
+salt '*' monit.monitor <service name>
+salt '*' monit.restart <service name>
+salt '*' monit.start <service name>
+salt '*' monit.stop <service name>
+salt '*' monit.summary
+salt '*' monit.summary <service name>
+salt '*' monit.unmonitor <service name>
+salt '*' mount.active
+salt '*' mount.fstab
+salt '*' mount.is_fuse_exec sshfs
+salt '*' mount.mount /mnt/foo /dev/sdz1 True
+salt '*' mount.remount /mnt/foo /dev/sdz1 True
+salt '*' mount.rm_fstab /mnt/foo
+salt '*' mount.set_fstab /mnt/foo /dev/sdz1 ext4
+salt '*' mount.swapoff /root/swapfile
+salt '*' mount.swapon /root/swapfile
+salt '*' mount.swaps
+salt '*' mount.umount /mnt/foo
+salt '*' '*' network.arp
+salt '*' network.dig archlinux.org
+salt '*' network.hwaddr eth0
+salt '*' network.in_subnet 10.0.0.0/16
+salt '*' network.interfaces
+salt '*' network.ip_addrs
+salt '*' network.ip_addrs6
+salt '*' network.netstat
+salt '*' network.ping archlinux.org
+salt '*' network.subnets
+salt '*' network.traceroute archlinux.org
+salt '*' nginx.configtest
+salt '*' nginx.signal reload
+salt '*' nginx.version
+salt '*' partition.align_check /dev/sda minimal 1
+salt '*' partition.check 1
+salt '*' partition.cp /dev/sda 2 3
+salt '*' partition.get_id /dev/sda 1
+salt '*' partition.mkfs /dev/sda2 fat32
+salt '*' partition.mklabel /dev/sda msdos
+salt '*' partition.mkpart /dev/sda primary fat32 0 639
+salt '*' partition.mkpartfs /dev/sda logical ext2 440 670
+salt '*' partition.name /dev/sda 1 'My Documents'
+salt '*' partition.part_list /dev/sda
+salt '*' partition.part_list /dev/sda unit=s
+salt '*' partition.part_list /dev/sda unit=kB
+salt '*' partition.probe
+salt '*' partition.probe /dev/sda
+salt '*' partition.rescue /dev/sda 0 8056
+salt '*' partition.resize /dev/sda 3 200 850
+salt '*' partition.rm /dev/sda 5
+salt '*' partition.set /dev/sda 1 boot on
+salt '*' partition.set_id /dev/sda 1 83
+salt '*' partition.name /dev/sda 1 boot
+salt '*' pecl.install fuse
+salt '*' pecl.list
+salt '*' pecl.uninstall fuse
+salt '*' pecl.update fuse
+salt '*' pillar.data
+salt '*' pillar.data key='roles'
+salt '*' pillar.ext 'libvirt: _'
+salt '*' pillar.get pkg:apache
+salt '*' pillar.data
+salt '*' pillar.data key='roles'
+salt '*' pillar.raw
+salt '*' pillar.raw key='roles'
+salt '*' pip.freeze /home/code/path/to/virtualenv/
+salt '*' pip.install <package name>,<package2 name>
+salt '*' pip.install requirements=/path/to/requirements.txt
+salt '*' pip.install <package name> bin_env=/path/to/virtualenv
+salt '*' pip.install <package name> bin_env=/path/to/pip_bin
+salt '*' pip.install markdown,django editable=git+https://github.com/worldcompany/djangoembed.git#egg=djangoembed upgrade=True no_deps=True
+salt '*' pip.list salt
+salt '*' pip.uninstall <package name>,<package2 name>
+salt '*' pip.uninstall requirements=/path/to/requirements.txt
+salt '*' pip.uninstall <package name> bin_env=/path/to/virtualenv
+salt '*' pip.uninstall <package name> bin_env=/path/to/pip_bin
+salt '*' pkg.latest_version <package name>
+salt '*' pkg.latest_version <package name> fromrepo=epel-testing
+salt '*' pkg.latest_version <package1> <package2> <package3> ...
+salt '*' pkg.clean_metadata
+salt '*' pkg.compare '0.2.4-0' '<' '0.2.4.1-0'
+salt '*' pkg.compare pkg1='0.2.4-0' oper='<' pkg2='0.2.4.1-0'
+salt '*' pkg.del_repo myrepo
+salt '*' pkg.del_repo myrepo basedir=/path/to/dir
+salt '*' pkg.file_list httpd
+salt '*' pkg.file_list httpd postfix
+salt '*' pkg.file_list
+salt '*' pkg.file_list httpd
+salt '*' pkg.file_list httpd postfix
+salt '*' pkg.file_list
+salt '*' pkg.get_repo myrepo
+salt '*' pkg.get_repo myrepo basedir=/path/to/dir
+salt '*' pkg.group_diff 'Perl Support'
+salt '*' pkg.group_info 'Perl Support'
+salt '*' pkg.group_install groups='["Group 1", "Group 2"]'
+salt '*' pkg.group_install 'My Group' skip='["foo", "bar"]'
+salt '*' pkg.group_install 'My Group' include='["foo", "bar"]'
+salt '*' pkg.group_list
+salt '*' pkg.install <package name>
+salt '*' pkg.install pkgs='["foo", "bar"]'
+salt '*' pkg.install pkgs='["foo", {"bar": "1.2.3-4.el6"}]'
+salt '*' pkg.install sources='[{"foo": "salt://foo.rpm"}, {"bar": "salt://bar.rpm"}]'
+salt '*' pkg.latest_version <package name>
+salt '*' pkg.latest_version <package name> fromrepo=epel-testing
+salt '*' pkg.latest_version <package1> <package2> <package3> ...
+salt '*' pkg.list_pkgs
+salt '*' pkg.list_repos
+salt '*' pkg.list_upgrades
+salt '*' pkg.mod_repo reponame enabled=1 gpgcheck=1
+salt '*' pkg.mod_repo reponame basedir=/path/to/dir enabled=1
+salt '*' pkg.mod_repo reponame baseurl= mirrorlist=http://host.com/
+salt '*' pkg.perform_cmp '0.2.4-0' '0.2.4.1-0'
+salt '*' pkg.perform_cmp pkg1='0.2.4-0' pkg2='0.2.4.1-0'
+salt '*' pkg.purge <package name>
+salt '*' pkg.purge <package1>,<package2>,<package3>
+salt '*' pkg.purge pkgs='["foo", "bar"]'
+salt '*' pkg.refresh_db
+salt '*' pkg.remove <package name>
+salt '*' pkg.remove <package1>,<package2>,<package3>
+salt '*' pkg.remove pkgs='["foo", "bar"]'
+salt '*' pkg.upgrade
+salt '*' pkg.upgrade_available <package name>
+salt '*' pkg.verify
+salt '*' pkg.version <package name>
+salt '*' pkg.version <package1> <package2> <package3> ...
+salt '*' pkg_resource.add_pkg '{}' bind 9
+salt '*' pkg_resource.check_desired
+salt '*' pkg_resource.compare
+salt '*' pkg_resource.find_changes
+salt '*' pkg_resource.pack_pkgs '["foo", {"bar": 1.2}, "baz"]'
+salt '*' pkg_resource.pack_sources '[{"foo": "salt://foo.rpm"}, {"bar": "salt://bar.rpm"}]'
+salt '*' pkg_resource.parse_targets
+salt '*' pkg_resource.perform_cmp
+salt '*' pkg_resource.sort_pkglist '["3.45", "2.13"]'
+salt '*' pkg_resource.stringify 'vim: 7.127'
+salt '*' pkg_resource.version vim
+salt '*' pkg_resource.version foo bar baz
+salt '*' pkg_resource.version 'python*'
+salt '*' puppet.fact kernel
+salt '*' puppet.facts
+salt '*' puppet.noop
+salt '*' puppet.noop tags=basefiles::edit,apache::server
+salt '*' puppet.noop debug
+salt '*' puppet.noop apply /a/b/manifest.pp modulepath=/a/b/modules tags=basefiles::edit,apache::server
+salt '*' puppet.run
+salt '*' puppet.run tags=basefiles::edit,apache::server
+salt '*' puppet.run debug
+salt '*' puppet.run apply /a/b/manifest.pp modulepath=/a/b/modules tags=basefiles::edit,apache::server
+salt '*' quota.get_mode
+salt '*' quota.off
+salt '*' quota.on
+salt '*' quota.report /media/data
+salt '*' quota.set /media/data user=larry block-soft-limit=1048576
+salt '*' quota.set /media/data group=painters file-hard-limit=1000
+salt '*' quota.stats
+salt '*' quota.warn
+salt '*' rbenv.default
+salt '*' rbenv.default 2.0.0-p0
+salt '*' rbenv.install
+salt '*' rbenv.install_ruby 2.0.0-p0
+salt '*' rbenv.is_installed
+salt '*' rbenv.list
+salt '*' rbenv.uninstall_ruby 2.0.0-p0
+salt '*' rbenv.update
+salt '*' rbenv.versions
+salt '*' ret.get_fun mysql network.interfaces
+salt '*' ret.get_jid redis 20421104181954700505
+salt '*' ret.get_jids mysql
+salt '*' ret.get_minions mysql
+salt '*' rvm.do 2.0.0 <command>
+salt '*' rvm.gemset_copy foobar bazquo
+salt '*' rvm.gemset_create 2.0.0 foobar
+salt '*' rvm.gemset_delete 2.0.0 foobar
+salt '*' rvm.gemset_empty 2.0.0 foobar
+salt '*' rvm.gemset_list
+salt '*' rvm.gemset_list_all
+salt '*' rvm.get
+salt '*' rvm.install
+salt '*' rvm.install_ruby 1.9.3-p385
+salt '*' rvm.is_installed
+salt '*' rvm.list
+salt '*' rvm.reinstall_ruby 1.9.3-p385
+salt '*' rvm.rubygems 2.0.0 1.8.24
+salt '*' rvm.set_default 2.0.0
+salt '*' rvm.wrapper <ruby_string> <wrapper_prefix>
+salt '*' saltutil.find_job <job id>
+salt '*' saltutil.is_running state.highstate
+salt '*' saltutil.kill_job <job id>
+salt '*' saltutil.refresh_modules
+salt '*' saltutil.refresh_pillar
+salt '*' saltutil.regen_keys
+salt '*' saltutil.revoke_key
+salt '*' saltutil.running
+salt '*' saltutil.signal_job <job id> 15
+salt '*' saltutil.sync_all
+salt '*' saltutil.sync_grains
+salt '*' saltutil.sync_modules
+salt '*' saltutil.sync_outputters
+salt '*' saltutil.sync_renderers
+salt '*' saltutil.sync_returners
+salt '*' saltutil.sync_states
+salt '*' saltutil.term_job <job id>
+salt '*' saltutil.update 0.10.3
+salt '*' service.disable <service name>
+salt '*' service.disabled <service name>
+salt '*' service.enable <service name>
+salt '*' service.enabled <service name>
+salt '*' service.get_all
+salt '*' service.get_all limit=upstart
+salt '*' service.get_all limit=sysvinit
+salt '*' service.get_disabled
+salt '*' service.get_disabled limit=upstart
+salt '*' service.get_disabled limit=sysvinit
+salt '*' service.get_enabled
+salt '*' service.get_enabled limit=upstart
+salt '*' service.get_enabled limit=sysvinit
+salt '*' service.reload <service name>
+salt '*' service.restart <service name>
+salt '*' service.start <service name>
+salt '*' service.status <service name>
+salt '*' service.stop <service name>
+salt '*' shadow.info root
+salt '*' shadow.set_date username 0
+salt '*' shadow.set_inactdays username 7
+salt '*' shadow.set_maxdays username 90
+salt '*' shadow.set_mindays username 7
+salt '*' shadow.set_password root '$1$UYCIxa628.9qXjpQCjM4a..'
+salt '*' shadow.set_warndays username 7
+salt '*' sqlite3.fetch /root/test.db 'SELECT * FROM test;'
+salt '*' sqlite3.indexes /root/test.db
+salt '*' sqlite3.indices /root/test.db
+salt '*' sqlite3.modify /root/test.db 'CREATE TABLE test(id INT, testdata TEXT);'
+salt '*' sqlite3.sqlite_version
+salt '*' sqlite3.tables /root/test.db
+salt '*' sqlite3.version
+salt '*' ssh.auth_keys root
+salt '*' ssh.check_key <user> <key> <enc> <comment> <options>
+salt '*' root salt://ssh/keyfile
+salt '*' ssh.check_known_host <user> <hostname> key='AAAA...FAaQ=='
+salt '*' ssh.get_known_host <user> <hostname>
+salt '*' ssh.host_keys
+salt '*' ssh.recv_known_host <hostname> enc=<enc> port=<port>
+salt '*' ssh.rm_auth_key <user> <key>
+salt '*' ssh.rm_known_host <user> <hostname>
+salt '*' ssh.set_auth_key <user> '<key>' enc='dsa'
+salt '*' ssh.set_auth_key_from_file <user>                salt://ssh_keys/<user>.id_rsa.pub
+salt '*' ssh.set_known_host <user> fingerprint='xx:xx:..:xx'                  enc='ssh-rsa' config='.ssh/known_hosts'
+salt '*' state.clear_cache
+salt '*' state.high '{"vim": {"pkg": ["installed"]}}'
+salt '*' state.highstate
+salt '*' state.low '{"state": "pkg", "fun": "installed", "name": "vi"}'
+salt '*' state.running
+salt '*' state.show_highstate
+salt '*' state.show_lowstate
+salt '*' state.show_sls core,edit.vim dev
+salt '*' state.show_top
+salt '*' state.single pkg.installed name=vim
+salt '*' state.sls core,edit.vim dev
+salt '*' state.template '<Path to template on the minion>'
+salt '*' state.template_str '<Template String>'
+salt '*' state.top reverse_top.sls
+salt '*' status.all_status
+salt '*' status.cpuinfo
+salt '*' status.cpustats
+salt '*' status.custom
+salt '*' status.diskstats
+salt '*' status.diskusage [paths and/or filesystem types]
+salt '*' status.diskusage         # usage for all filesystems
+salt '*' status.diskusage / /tmp  # usage for / and /tmp
+salt '*' status.diskusage ext?    # usage for ext[234] filesystems
+salt '*' status.diskusage / ext?  # usage for / and all ext filesystems
+salt '*' status.loadavg
+salt '*' status.meminfo
+salt '*' status.netdev
+salt '*' status.netstats
+salt '*' status.pid <sig>
+salt '*' status.procs
+salt '*' status.uptime
+salt '*' status.vmstats
+salt '*' status.w
+salt '*' supervisord.add <name>
+salt '*' supervisord.custom "mstop '*gunicorn*'"
+salt '*' supervisord.remove <name>
+salt '*' supervisord.reread
+salt '*' supervisord.restart <service>
+salt '*' supervisord.start <service>
+salt '*' supervisord.status
+salt '*' supervisord.status_raw
+salt '*' supervisord.stop <service>
+salt '*' supervisord.update
+salt '*' sys.argspec pkg.install
+salt '*' sys.argspec sys
+salt '*' sys.argspec
+salt '*' sys.doc
+salt '*' sys.doc sys
+salt '*' sys.doc sys.doc
+salt '*' sys.doc network.traceroute user.info
+salt '*' sys.list_functions
+salt '*' sys.list_functions sys
+salt '*' sys.list_functions sys user
+salt '*' sys.list_modules
+salt '*' sys.reload_modules
+salt '*' sysctl.assign net.ipv4.ip_forward 1
+salt '*' sysctl.get net.ipv4.ip_forward
+salt '*' sysctl.persist net.ipv4.ip_forward 1
+salt '*' sysctl.show
+salt '*' system.halt
+salt '*' system.init 3
+salt '*' system.poweroff
+salt '*' system.reboot
+salt '*' system.shutdown
+salt '*' test.arg 1 "two" 3.1 txt="hello" wow='{a: 1, b: "hello"}'
+salt '*' test.arg_repr 1 "two" 3.1 txt="hello" wow='{a: 1, b: "hello"}'
+salt '*' test.collatz 3
+salt '*' test.conf_test
+salt '*' test.cross_test file.gid_to_group 0
+salt '*' test.echo 'foo bar baz quo qux'
+salt '*' test.fib 3
+salt '*' test.get_opts
+salt '*' test.kwarg num=1 txt="two" env='{a: 1, b: "hello"}'
+salt '*' test.not_loaded
+salt '*' test.outputter foobar
+salt '*' test.ping
+salt '*' test.provider service
+salt '*' test.providers
+salt '*' test.rand_sleep 60
+salt '*' test.retcode 42
+salt '*' test.sleep 20
+salt '*' test.tty tty0 'This is a test'
+salt '*' test.tty pts3 'This is a test'
+salt '*' test.version
+salt '*' test.versions_information
+salt '*' test.versions_report
+salt '*' timezone.get_hwclock
+salt '*' timezone.get_offset
+salt '*' timezone.get_zone
+salt '*' timezone.get_zonecode
+salt '*' timezone.set_hwclock UTC
+salt '*' timezone.set_zone 'America/Denver'
+salt '*' timezone.zone_compare 'America/Denver'
+salt '*' user.add name <uid> <gid> <groups> <home> <shell>
+salt '*' user.chfullname foo "Foo Bar"
+salt '*' user.chgid foo 4376
+salt '*' user.chgroups foo wheel,root True
+salt '*' user.chhome foo /home/users/foo True
+salt '*' user.chhomephone foo "7735551234"
+salt '*' user.chroomnumber foo 123
+salt '*' user.chshell foo /bin/zsh
+salt '*' user.chuid foo 4376
+salt '*' user.chworkphone foo "7735550123"
+salt '*' user.delete name remove=True force=True
+salt '*' user.getent
+salt '*' user.info root
+salt '*' user.list_groups foo
+salt '*' user.list_users
+salt '*' virtualenv.create /path/to/new/virtualenv
+
+```
+
+## 4. /etc/salt/master
+
+### 4.1. File Server settings
+
+编辑 /etc/salt/master 文件
+
+```
+file_roots:
+  base:
+    - /srv/salt
+
+```
+
+```
+mkdir /srv/salt
+
+```
+
+### 4.2. Pillar settings
+
+```
+pillar_roots:
+  base:
+    - /srv/pillar
+
+```
+
+```
+mkdir -p /srv/pillar
+
+```
+
+### 4.3. Node Groups
+
+```
+nodegroups:
+  group1: 'L@foo.domain.com,bar.domain.com,baz.domain.com and bl*.domain.com'
+  group2: 'G@os:Debian and foo.domain.com'
+
+```
+
+### 4.4. File Server Backend
+
+```
+fileserver_backend:
+  - roots
+
+```
+
+## 5. sls 脚本
+
+安装 vim 语法加亮插件
+
+```
+mkdir ~/.vim/
+git clone https://github.com/saltstack/salt-vim.git
+mv salt-vim/{ftdetect,ftplugin,syntax} ~/.vim/
+
+```
+
+配置.vimrc 文件
+
+```
+
+cat >> ~/.vimrc <<EOF
+set nocompatible
+filetype plugin indent on
+
+set nocompatible
+set tabstop=2
+set shiftwidth=2
+set expandtab
+EOF
+
+```
+
+### 5.1. pkg
+
+pkg 负责包的安装与卸载
+
+```
+rsync:
+  pkg:
+    - installed
+
+```
+
+### 5.2. service
+
+service 负责管理服务脚本的启用，禁用，启动，停止，重启等等工作
+
+```
+  service:
+    - name: rsync
+    - running
+    - enable: True
+
+```
+
+## 6. FAQ
+
+### 6.1. Git fileserver backend is enabled in configuration but could not be loaded, is git-python installed
+
+```
+2013-09-03 11:11:18,101 [salt.loaded.int.pillar.git_pillar           ][ERROR   ] Git fileserver backend is enabled in configuration but could not be loaded, is git-python installed?
+
+```
+
+编辑 /etc/salt/master 配置如下
+
+```
+fileserver_backend:
+  - roots
+
+```
+
+## 第 157 章 Chef
+
+http://www.opscode.com/chef/
+
+## 1. 安装 Chef
+
+### 1.1. CentOS
+
+## 第 158 章 Cobbler
+
+http://cobbler.github.com/
+
+## 第 159 章 Cfengine
+
+http://www.cfengine.org/
+
+## 第 160 章 func
+
+https://fedorahosted.org/func/
+
+## 第 161 章 (R)?ex Deployment & Configuration Management
+
+http://rexify.org/
+
+## 第 162 章 基于 Web 的系统管理软件
+
+### *web-based interface for system administration*
+
+## 1. Webmin
+
+网站
+
+[`www.webmin.com/`](http://www.webmin.com/)
+
+过程 162.1. Webmin 安装步骤:
+
+1.  [Debian Package](http://prdownloads.sourceforge.net/webadmin/webmin_1.380_all.deb)
+
+2.  命令:
+
+     sudo dpkg --install webmin_1.380_all.deb 
+
+    sudo apt-get install perl libnet-ssleay-perl openssl libauthen-pam-perl libpam-runtime libio-pty-perl libmd5-perl
+
+    Webmin install complete. You can now login to https://netkiller.8800.org:10000/ as root with your root password, or as any user who can use sudo to run commands as root.
+
+3.  script
+
+    Usage: /etc/init.d/webmin { start | stop }
+
+4.  nmap localhost
+
+### 1.1. webalizer
+
+```
+# apt-get install webmin-webalizer
+
+```
+
+## 2. ajenti
+
+[`ajenti.org/`](http://ajenti.org/)
